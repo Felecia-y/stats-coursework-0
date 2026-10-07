@@ -1,0 +1,313 @@
+---
+output:
+  pdf_document: default
+  html_document: default
+---
+inc---
+title: "Statistics 2: Coursework 0"
+author:
+  - "Henyi Gao (Student ID:2707868)"
+  - "Xinyan Tao (Student ID:)"
+  - "Ziyu Wei (Student ID: 2785848)"
+date: "`r Sys.Date()`"
+output:
+  pdf_document:
+    number_sections: yes
+    fig_height: 4
+    fig_width: 6
+    fig_caption: TRUE
+    keep_tex: FALSE
+    includes:
+      in_header:"\\usepackage{float}"
+geometry: "margin=1in"
+fontsize: 11pt
+linestretch: 1.15
+urlcolor: blue
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+  echo = TRUE,
+  eval = TRUE,
+  warning = FALSE,
+  message = FALSE,
+  fig.width = 6,
+  fig.height = 4,
+  fig.align = "center",
+  fig.pos = "H"
+  )
+library(knitr)
+set.seed(12345)
+```
+
+```{r echo=FALSE}
+# this line means the same random variates will be produced each time the file is knit
+# you can delete it if you want to
+
+```
+
+# Instructions
+
+1. Reports should be handed in **as a single PDF file** using Blackboard, by noon on the due date. There are 5 marks assigned to submitting in this format. RMarkdown, image, word, zip files, for example, will **not** receive these marks.
+
+1. You can work alone or in a group with up to two other people.
+
+1. One person per group should hand in a report on blackboard. The names and student numbers of all group members must be on the first page.
+
+1. Your answers should combine text and code snippets in R. It is recommended that you use RMarkdown to prepare your reports, since this is typically easier for students, but this is not mandatory.
+
+1. You must explain what you are doing clearly to obtain full marks on each question. You can use comments (which start with #) to annotate your code. Mathematical derivations can be written using LaTeX commands in RMarkdown or on paper, with a photo then appended to the end of the PDF being submitted.
+
+1. This practical counts does not count towards your assessment for Statistics 2. It is out of 25 marks. (5 marks are for submitting as a pdf.)
+
+# Covid-19 incubation period
+
+Statistics is often used in situations where a complicated phenomenon is not understood from first principles, but there is a need to identify some key characteristics. For example, substantial portions of our understanding of the social sciences and medicine is based on statistical experiments and analysis.
+
+We consider here an attempt in January 2020 to approximate the distribution of the [incubation period](https://en.wikipedia.org/wiki/Incubation_period) for [COVID-19](https://en.wikipedia.org/wiki/COVID-19), i.e. the time between infection and when symptoms appear. Since COVID-19 was not yet endemic but quite infectious, this was of great public health interest because understanding the incubation period would assist in defining isolation periods after exposure that effectively manage the competing interests of allowing a return to normal life and reducing the probability of further infections.
+
+This is a reasonable example of the point made above: although an "initial genome" was published by researchers in early January, there is no way to "read off" from this important macroscopic quantities such as the incubation period or epidemiological quantities such as the rate of reproduction (which is also heavily influenced by social behaviour and environmental characteristics).
+
+The modified data contains 25 observations of incubation times (in days).
+
+# Data
+
+The data we analyze here is a modified version of the data used in the article
+
+> Backer, Jantien A., Don Klinkenberg, and Jacco Wallinga. [Incubation period of 2019 novel coronavirus (2019-nCoV) infections among travellers from Wuhan, China, 20–28 January 2020](https://dx.doi.org/10.2807%2F1560-7917.ES.2020.25.5.2000062). Eurosurveillance 25, no. 5 (2020)
+
+which was accepted for publication on February 6, 2020. The actual data used would require a more sophisticated model to fit than we can use for Statistics 2 (see the Epilogue below).
+
+We can read in the data as follows (make sure it is in the same directory as your Rmd file).
+
+```{r}
+covid.incubation <- read.csv("covid-incubation.csv")
+```
+
+You can inspect the data by clicking on the data frame in the Environment pane in RStudio. You can see that it contains some demographic information and a description of each patient, with 25 patients in total. For us, the only important data is the `incubation.days` column, the incubation period in days for each patient. We can extract this data and plot the counts of each number of incubation days to visualize the data.
+
+```{r}
+incubation.days <- covid.incubation$incubation.days
+plot(table(incubation.days), ylab="counts")
+```
+
+# Log-normal incubation period model
+
+One possible model for the incubation period is that it follows a log-normal distribution, i.e.
+$$Y = e^X, \qquad X \sim N(\mu,\sigma^2),$$
+where $\theta = (\mu,\sigma^2)$ is the statistical parameter. [Sartwell (1950)](https://doi.org/10.1093/oxfordjournals.aje.a119397) proposed this model after assessing fit for several infectious diseases.
+
+You should just ignore the fact that the incubation period as measured takes discrete values. There is an art to statistical modelling!
+
+**Question 1**. [3 marks] Derive the maximum likelihood estimators of $\mu$ and $\sigma^2$, and report the estimate for this dataset. You can assume the Hessian is negative definite.
+
+I suggest that you write a function `ml.estimate` that takes as input some data and returns a vector containing the estimated values of $\mu$ and $\sigma^2$. For example, something like this:
+
+```{r}
+covid_incubation <- read.csv("covid-incubation.csv")
+ml.estimate <- function(ys) {
+  ## your code here
+  mu.hat <- mean(log(ys)) # change this line
+  sigmaSq.hat <- mean((log(ys)-mu.hat)^2) # change this line
+  c(mu.hat, sigmaSq.hat)
+}
+```
+
+--- **Solution** ---
+```{r}
+ml.estimate(covid_incubation$incubation.days)
+```
+--- **End of Solution** ---
+
+If you have written your code correctly, you can visualize the fitted distribution's PDF alongside the normalized counts of the data.
+
+```{r}
+theta.ml <- ml.estimate(incubation.days)
+plot(table(incubation.days)/length(incubation.days), ylab="counts")
+vs <- seq(0,30,0.1)
+lines(vs,dlnorm(vs,meanlog=theta.ml[1],sdlog=sqrt(theta.ml[2])),col="red")
+```
+
+**Question 2**. [2 marks] Comment on whether the estimates seem biologically plausible.
+
+--- **Solution** ---
+Comparing the actual data with the logarithmal normal model estimated in the first question, it can be seen that the data is mainly concentrated in the forth to  the ninth days. The estimated distribution also gives a relatively high density in these days, and then gradually decrease to the right and presents a long tail, which is consistent with the biological common sense that the incubation period is positive, most people get sick within a few days, and a few people get sick later. However, the red curve does not exactly match the observation data. Therefore, the graph can be used to illustrate that the model is more consistent with the data in terms of overall shape, but strong conclusions cannot get from these 25 sample alone.
+
+--- **End of Solution** ---
+
+**Question 3**. [3 marks] Derive the method of moments estimators of $\mu$ and $\sigma^2$, and report the estimate for this dataset. You do not need to derive the moments.
+
+I suggest that you write a function `mom.estimate` that takes as input some data and returns a vector containing the estimated values of $\mu$ and $\sigma^2$. For example, something like this:
+
+```{r}
+mom.estimate <- function(ys) {
+  m1 <- mean(ys)
+  m2 <- mean(ys^2)
+  
+  mu.hat <- 2 * log(m1) - 0.5 * log(m2)
+  sigmaSq.hat <- log(m2) - 2 * log(m1)
+  
+  c(mu.hat, sigmaSq.hat)
+}
+```
+
+--- **Solution** ---
+Using the method of moments, let
+
+\[
+m_1=\frac{1}{n}\sum_{i=1}^n y_i,
+\qquad
+m_2=\frac{1}{n}\sum_{i=1}^n y_i^2.
+\]
+
+Since \(Y=e^X\) and \(X\sim N(\mu,\sigma^2)\),
+
+\[
+E(Y)=e^{\mu+\sigma^2/2}
+\]
+
+and
+
+\[
+E(Y^2)=e^{2\mu+2\sigma^2}.
+\]
+
+Equating the sample moments to the population moments gives
+
+\[
+m_1=e^{\mu+\sigma^2/2},
+\qquad
+m_2=e^{2\mu+2\sigma^2}.
+\]
+
+Taking logarithms and solving for the parameters gives
+
+\[
+\hat{\mu}_{MoM}
+=2\log(m_1)-\frac{1}{2}\log(m_2)
+\]
+
+and
+
+\[
+\hat{\sigma}^2_{MoM}
+=\log(m_2)-2\log(m_1).
+\]
+
+For this dataset, the estimates are
+
+\[
+\hat{\mu}_{MoM}\approx1.821,
+\qquad
+\hat{\sigma}^2_{MoM}\approx0.238.
+\]
+
+--- **End of Solution** ---
+
+Again, you can visualize the fit.
+
+```{r}
+theta.mom <- mom.estimate(incubation.days)
+plot(table(incubation.days)/length(incubation.days), ylab="counts")
+vs <- seq(0,30,0.1)
+lines(vs,dlnorm(vs,meanlog=theta.mom[1],sdlog=sqrt(theta.mom[2])),col="red")
+```
+
+**Question 4**. [4 marks] Using simulations, compare empirically the mean-squared errors of the maximum likelihood estimators and the method of moments estimators when $\theta = (1.8, 0.2)$ and $n=25$. State, with reason, which method is your preferred estimator?
+
+--- **Solution** ---
+```{r}
+set.seed(123)
+
+theta.true <- c(1.8, 0.2)
+n <- 25
+B <- 10000
+
+estimates.ml <- matrix(NA, nrow = B, ncol = 2)
+estimates.mom <- matrix(NA, nrow = B, ncol = 2)
+
+for (b in 1:B) {
+  x <- rnorm(n, mean = theta.true[1], sd = sqrt(theta.true[2]))
+  y <- exp(x)
+
+  estimates.ml[b, ] <- ml.estimate(y)
+  estimates.mom[b, ] <- mom.estimate(y)
+}
+
+# Calculate the mean-squared error for each parameter
+mse.ml <- colMeans(sweep(estimates.ml, 2, theta.true, "-")^2)
+mse.mom <- colMeans(sweep(estimates.mom, 2, theta.true, "-")^2)
+
+# Compare the MSEs
+mse.ml
+mse.mom
+
+```
+The empirical MSEs from 10,000 simulations are
+
+ML: MSE for \(\mu\) = 0.007728, MSE for \(\sigma^2\) = 0.003171.
+
+MOM: MSE for \(\mu\) = 0.007922, MSE for \(\sigma^2\) = 0.004521.
+
+The ML estimator has smaller MSEs for both $\mu$ and $\sigma^2$.
+Therefore, I prefer the ML estimator because it is more accurate.
+
+--- **End of Solution** ---
+
+**Question 5**. [2 mark] In light of Q4, comment on the model obtained by observing $X=\log(Y)$ rather than $Y$.
+
+--- **Solution** ---
+
+
+--- **End of Solution** ---
+
+**Question 6**. [4 marks] It is of interest to determine the probability that the incubation period exceeds $7$, $10$ and $14$ days, since asking people to isolate for this number of days could have been a simple public health message. What are the maximum likelihood estimates of these probabilities?
+
+--- **Solution** ---
+```{r}
+#The ML estimate of Q1
+theta.ml <- ml.estimate((covid_incubation$incubation.days))
+#The number of days to be calculated
+days <- c(7, 10, 14)
+#The probability that the incubation period exceeds these days
+probabilities <- plnorm(
+  days,
+  meanlog = theta.ml[1],#mu.hat
+  sdlog = sqrt(theta.ml[2]),#sigmaSq.hat
+  lower.tail = FALSE
+)
+#The final answer
+data.frame(days = days, probability = probabilities)
+```
+--- **End of Solution** ---
+
+**Question 7**. [2 mark] Assume that you did not know how to derive the maximum likelihood estimator for this model. Use the `optim` function to find and report the maximizer of the log-likelihood.
+
+--- **Solution** ---
+
+
+--- **End of Solution** ---
+
+**Question 8**. [0 marks] Please describe how you used AI in this coursework, if you did, and what you learned from its use.
+
+[5 marks] submitting as a pdf.
+
+# Epilogue
+
+## Public health consequences
+
+Question 6 and its solution are the most relevant from a public health perspective. In particular, the probability of incubation period exceeding a particular number of days allows one to test the hypothesis that a person has indeed been infected. It should not come as a surprise, therefore, that NHS guidelines after exposure to Covid-19 were to self-isolate for 14 days (unless symptoms appear, in which case one was told to self-isolate for longer).
+
+One should be careful not to make logical errors in interpreting the probabilities above. In particular, the probability that the incubation exceeds 10 days is the probability that someone who is infected has no symptoms at the 10 day mark. But it is **not** the probability that they are infected if they have no symptoms at the 10 day mark: whether someone is infected is not a random variable in this model.
+
+Finally, one should also bear in mind that there are asymptomatic cases of Covid-19, and this is not necessarily reflected in the model used here.
+
+## Actual data
+
+This is a simple analysis of (modified) data that was used early on in the Covid-19 pandemic to infer the incubation period of the virus. Although the data was modified, the ML estimates are not too different to the estimates produced by the original study.
+
+The specific modification of the data is that we pretend that we have observations of the true incubation period for each of the patients. Such observations are, however, not possible to record. In the original dataset the date of symptom onset is recorded but the date of infection is not, since it is not known when a particular patient was infected. Instead, an exposure window of dates was recorded. Part of the more sophisticated statistical analysis involves modelling the date of infection of each patient as an unobserved random variable. Using such a model for this computer practical would not have been appropriate.
+
+The dataset used for this practical is also smaller, as the method used to "impute" the date of infection data involved taking the midpoint of the exposure window, and several of the exposure windows were open-ended (e.g. people who were in Wuhan long before the outbreak began or whose dates of travel were not known). To simplify the analysis, patients with open-ended exposure windows were ignored.
+
+Obviously, this means that the data used here are to some extent "fake". But hopefully you can see the potential impact of being able to infer a distribution for the incubation period based on a small amount of high-quality data.
