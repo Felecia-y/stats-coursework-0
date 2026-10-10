@@ -1,27 +1,19 @@
 ---
-output:
-  pdf_document: default
-  html_document: default
----
-inc---
 title: "Statistics 2: Coursework 0"
 author:
   - "Henyi Gao (Student ID:2707868)"
-  - "Xinyan Tao (Student ID:)"
+  - "Xinyan Tao (Student ID:2710425)"
   - "Ziyu Wei (Student ID: 2785848)"
 date: "`r Sys.Date()`"
 output:
   pdf_document:
-    number_sections: yes
+    number_sections: FALSE
     fig_height: 4
     fig_width: 6
     fig_caption: TRUE
-    keep_tex: FALSE
-    includes:
-      in_header:"\\usepackage{float}"
+    extra_dependencies: ["float"]
 geometry: "margin=1in"
 fontsize: 11pt
-linestretch: 1.15
 urlcolor: blue
 ---
 
@@ -258,13 +250,31 @@ Therefore, I prefer the ML estimator because it is more accurate.
 
 --- **Solution** ---
 
+If we observed $x= \log Y$ directly, the data would be iid $N(\mu, \sigma^2)$ - a normal model. Under this model the maximum likelihood estimators are
+
+$$\hat\mu = \bar X = \frac{1}{n}\sum_i X_i, \qquad\hat\sigma^2 = \frac{1}{n}\sum_i(X_i - \bar X)^2.$$
+```{r}
+
+# Demonstration: observing X = log(Y) directly gives exactly the Q1 estimators
+
+x<- log(incubation.days)
+
+c(mu.hat = mean(x), sigmaSq.hat = mean((x - mean(x))^2))
+theta.ml #identical to the closed-form MLE from Q1
+```
+
+Importantly, the method-of-moments estimators coincide with the maximum likelihood estimators here: matching the first two moments $E(X)=\mu$ and $E(X^2)=\mu^2+\sigma^2$ gives exactly the same pair. This is a special feature of the normal model.
+
+The method-of-moments estimator used in Q3 and in the simulation of Q4 was constructed from the moments of $Y$ on the original scale, $E(Y)=e^{\mu+\sigma^2/2}$ and $E(Y^2)=e^{2\mu+2\sigma^2}$. In that simulation setting, the MLE had a smaller empirical MSE than this moment-based estimator, in particular for $\sigma^2$. If, instead, the method-of-moments estimator were constructed from the moments of $X$ -- $E(X)=\mu$ and $E(X^2)=\mu^2+\sigma^2$ -- it would coincide exactly with the MLE, and the two would therefore have identical MSEs.Thus, the MSE difference observed in Q4 concerns the particular MOM estimators based on the moments of $Y$. It does not extend to MOM based on the moments of $X$, which gives the same estimators as maximum likelihood.
 
 --- **End of Solution** ---
 
 **Question 6**. [4 marks] It is of interest to determine the probability that the incubation period exceeds $7$, $10$ and $14$ days, since asking people to isolate for this number of days could have been a simple public health message. What are the maximum likelihood estimates of these probabilities?
 
 --- **Solution** ---
+  
 ```{r}
+
 #The ML estimate of Q1
 theta.ml <- ml.estimate((covid_incubation$incubation.days))
 #The number of days to be calculated
@@ -285,10 +295,55 @@ data.frame(days = days, probability = probabilities)
 
 --- **Solution** ---
 
+We maximise log-likelihood. Since `optim` minimises by default, we minimise the **negative** log-likelihood. We parameterise the model by $(\mu,\sigma)$ rather than $(\mu,\sigma^2)$, so that the positivity constraint $\sigma > 0$ can be imposed through a simple lower bound.
+
+```{r}
+
+# Negative log-likelihood (optim minimises, hence the minus sign)
+
+neg.loglik <- function(par, ys){
+  mu <- par[1]
+  sigma <- par[2]
+  -sum(dlnorm(ys, meanlog = mu, sdlog = sigma, log = TRUE))
+}
+
+opt.res <- optim(
+  par = c(mu=0, sigma = 1),
+  fn  = neg.loglik,
+  ys  = incubation.days,
+  method = "L-BFGS-B",
+  lower  = c(-Inf, 1e-6)
+)
+
+opt.res$par
+opt.res$convergence
+
+# Convert back to (mu.hat, sigmaSq.hat) and compare with Q1
+
+mu.hat.numerical  <- opt.res$par[1]
+sigmaSq.hat.numerical  <- opt.res$par[2]^2
+c(
+  mu.hat = unname (mu.hat.numerical), 
+  sigmaSq.hat = unname(sigmaSq.hat.numerical)
+  )
+
+theta.ml
+
+```
+The numerical maximiser returns \(\hat\mu \approx 1.841\) and \(\hat\sigma \approx 0.423\), so \(\hat\sigma^2 \approx 0.179\). The numerical estimates agree with the closed-form MLEs from Q1 up to numerical error.
+
 
 --- **End of Solution** ---
 
 **Question 8**. [0 marks] Please describe how you used AI in this coursework, if you did, and what you learned from its use.
+
+As a group, we used AI together to help divide the coursework among the three of us in a balanced way, taking into account the dependencies between the questions. The statements below describe how each of us used AI.
+
+**Xinyan Tao:** In this coursework, I used AI to identify where errors occurred and check my conclusions for grammatical errors.
+
+**Henyi Gao:** During this coursework, I consulted AI support to identify and fix logical errors in my R code, resolve syntax issues, and correct formatting problems within RStudio and R Markdown. Since this was my first formal programming-based statistical assignment, I had limited experience with code structure, standard syntax, and report formatting rules. With the help of AI debugging guidance, I improved my ability to write standard R code, understand programming logic, and format academic statistical reports correctly.
+
+**Ziyu Wei:** During this coursework, I used AI to help debug our code, check the overall structure of the report for logical errors, and generate a preview of the knitted PDF. I also used it to clarify statistical explanations and polish the English wording. I learned that AI is useful for planning, formatting and debugging, but that I still need to verify the statistical results myself before including them in the final report.
 
 [5 marks] submitting as a pdf.
 
